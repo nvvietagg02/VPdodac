@@ -24,6 +24,8 @@ export enum QuoteStatus {
   REJECTED = 'REJECTED',
 }
 
+export type QuoteType = 'DRAWING' | 'NEW_CERTIFICATE'; // Ra Bản Vẽ | Ra Giấy Mới
+
 export interface LicenseInfo {
   startDate: string;
   durationYears: number;
@@ -56,6 +58,7 @@ export interface Office {
 export interface Customer {
   id: string;
   name: string;
+  cccd?: string; // Added CCCD
   phone: string;
   email?: string; 
   type: 'Cá nhân' | 'Doanh nghiệp' | 'Môi giới';
@@ -78,16 +81,23 @@ export interface Project {
   officeId: string; 
   quoteId?: string; 
   
+  // Land Info Split
+  address: string; // Tên đường / Xã / Huyện
+  plotNumber?: string; // Số tờ
+  plotPage?: string;   // Số thửa
+  landOwner?: string;  // Tên chủ đất trên sổ
+  ownerBirthYear?: string; // Năm sinh chủ đất
+
   type?: string; 
-  address: string;
   landArea?: number; 
   status: ProjectStatus;
   
-  // Technician Assignment
+  // Technician Assignment & QA
   technicianId?: string;
   technicianName?: string;
   technicianStatus?: TechnicianStatus; // New: Tech specific status
   commission?: number; 
+  errorNote?: string; // Ghi chú lỗi của Giám đốc
   
   // Dates
   createdDate: string; 
@@ -128,6 +138,14 @@ export interface Quote {
   status: QuoteStatus;
   createdDate: string;
   items: QuoteItem[];
+  attachments?: Attachment[]; // Added Attachments for Quotes
+  
+  // New Fields
+  type: QuoteType; // Loại báo giá
+  area?: number; // Diện tích báo giá
+  landType?: 'URBAN' | 'RURAL'; // Loại đất: Đô thị / Ngoài đô thị
+  locationPrice?: number; // Giá vị trí đất (để tính thuế)
+  isCustomerAccepted?: boolean; // Khách đã chốt
 }
 
 export type SalaryType = 'MONTHLY' | 'DAILY' | 'PRODUCT';
@@ -228,6 +246,14 @@ export interface CommissionRule {
   amount: number;
 }
 
+export interface QuoteAreaRule {
+  id: string;
+  minArea: number;
+  maxArea: number;
+  priceUrban: number; // Giá Đô thị
+  priceRural: number; // Giá Ngoài đô thị
+}
+
 export interface StatusLabel {
     label: string;
     color: string; // Hex code
@@ -259,11 +285,13 @@ export interface PayrollConfig {
 }
 
 export interface SystemConfig {
-  costItems: CostConfigItem[];
+  drawingCostItems: CostConfigItem[]; // Cấu hình chi phí Ra Bản Vẽ
+  newCertCostItems: CostConfigItem[]; // Cấu hình chi phí Ra Giấy Mới
   statusLabels: StatusConfig;
   quoteIdConfig: IdConfig;
   projectIdConfig: IdConfig;
   commissionRules: CommissionRule[]; 
   projectTypes: ProjectTypeConfig[];
-  payrollConfig: PayrollConfig; // Added Payroll Config
+  payrollConfig: PayrollConfig; 
+  quoteAreaRules: QuoteAreaRule[]; // New: Rules for quoting based on area
 }

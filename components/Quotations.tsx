@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
-import { Quote, QuoteStatus, Customer, User, Role, SystemConfig, QuoteItem } from '../types';
-import { FilePlus, Send, CheckSquare, XSquare, Eye, Edit, Trash2, Plus, X, Clock, Check, FileText } from 'lucide-react';
+import { Quote, QuoteStatus, QuoteType, Customer, User, Role, SystemConfig, QuoteItem, Attachment } from '../types';
+import { FilePlus, Send, CheckSquare, XSquare, Eye, Edit, Trash2, Plus, X, Clock, Check, FileText, Upload, Paperclip, File as FileIcon, Image as ImageIcon, Loader2, Search, UserCheck, CheckCircle } from 'lucide-react';
+import { uploadFile } from '../utils';
 
 interface QuotationsProps {
   quotes: Quote[];
@@ -25,17 +27,47 @@ const Quotations: React.FC<QuotationsProps> = ({
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Form State
   const [formData, setFormData] = useState<{
     customerId: string;
     status: QuoteStatus;
+    type: QuoteType;
     items: QuoteItem[];
+    attachments: Attachment[]; // Added attachments
+    area: number; // Diện tích để tính tiền
+    landType: 'URBAN' | 'RURAL'; // Loại đất
+    locationPrice: number; // Giá vị trí đất
+    isCustomerAccepted: boolean;
   }>({
     customerId: '',
     status: QuoteStatus.DRAFT,
-    items: []
+    type: 'DRAWING',
+    items: [],
+    attachments: [],
+    area: 0,
+    landType: 'URBAN',
+    locationPrice: 0,
+    isCustomerAccepted: false,
   });
+
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Helper to get default items based on type
+  // CRITICAL FIX: Ensure we access the correct config array based on type
+  const getDefaultItems = (type: QuoteType) => {
+      const configKey = type === 'DRAWING' ? 'drawingCostItems' : 'newCertCostItems';
+      // Safety check in case config is not fully loaded yet
+      const items = systemConfig[configKey] || []; 
+      return items.map(conf => ({
+          id: conf.id, 
+          name: conf.name,
+          price: conf.defaultPrice,
+          isEnabled: true, // Default to true
+          isCustom: false
+      }));
+  };
 
   // Init form data when opening modal
   useEffect(() => {
@@ -44,33 +76,117 @@ const Quotations: React.FC<QuotationsProps> = ({
         setFormData({
           customerId: editingQuote.customerId,
           status: editingQuote.status,
-          items: JSON.parse(JSON.stringify(editingQuote.items)) // Deep copy
+          type: editingQuote.type || 'DRAWING', // Default fallback
+          items: JSON.parse(JSON.stringify(editingQuote.items)), // Deep copy
+          attachments: editingQuote.attachments || [],
+          area: editingQuote.area || 0,
+          landType: editingQuote.landType || 'URBAN',
+          locationPrice: editingQuote.locationPrice || 0,
+          isCustomerAccepted: editingQuote.isCustomerAccepted || false
         });
       } else {
-        // Create New: Load items from System Config
-        const defaultItems: QuoteItem[] = systemConfig.costItems.map(conf => ({
-          id: conf.id, 
-          name: conf.name,
-          price: conf.defaultPrice,
-          isEnabled: true,
-          isCustom: false
-        }));
+        // Create New
+        // FIX: Explicitly call getDefaultItems with 'DRAWING' (default type)
+        const initialItems = getDefaultItems('DRAWING');
         setFormData({
           customerId: customers.length > 0 ? customers[0].id : '',
           status: QuoteStatus.DRAFT,
-          items: defaultItems
+          type: 'DRAWING', // Default Type
+          items: initialItems, 
+          attachments: [],
+          area: 0,
+          landType: 'URBAN',
+          locationPrice: 0,
+          isCustomerAccepted: false
         });
       }
     }
-  }, [isModalOpen, editingQuote, customers, systemConfig]);
+  }, [isModalOpen, editingQuote, customers, systemConfig]); // Added systemConfig to dependencies to react to config load
 
   // --- Handlers ---
   
+  const handleTypeChange = (newType: QuoteType) => {
+      if (isStrictlyLocked) return;
+      
+      // If items were modified, ask for confirmation? (Optional, kept simple here)
+      // We just reload the default items for the new type
+      setFormData(prev => ({
+          ...prev,
+          type: newType,
+          items: getDefaultItems(newType)
+      }));
+  }
+
   const handleItemChange = (index: number, field: keyof QuoteItem, value: any) => {
     const newItems = [...formData.items];
     newItems[index] = { ...newItems[index], [field]: value };
     setFormData({ ...formData, items: newItems });
   };
+
+  // Logic: Auto-calculate Price based on Area OR Land Type change
+  const calculateQuotePrice = (area: number, type: 'URBAN' | 'RURAL') => {
+      const rule = systemConfig.quoteAreaRules?.find(r => area >= r.minArea && area <= r.maxArea);
+      if (!rule) return 0;
+      return type === 'URBAN' ? rule.priceUrban : rule.priceRural;
+  };
+
+  // Helper function to update auto-calculated items (Inspection Fee, Tax)
+  const updateAutoCalculatedItems = (items: QuoteItem[], area: number, landType: 'URBAN' | 'RURAL', locationPrice: number) => {
+      // 1. Calculate Base Survey Price
+      const surveyPrice = calculateQuotePrice(area, landType);
+      
+      // Find Survey Item (ID '1') and Minutes Item (ID '3') for Inspection Fee logic
+      const surveyItem = items.find(i => i.id === '1');
+      const minutesItem = items.find(i => i.id === '3');
+      const surveyCost = surveyItem?.isEnabled ? surveyPrice : 0;
+      const minutesCost = minutesItem?.isEnabled ? (minutesItem.price || 0) : 0;
+
+      return items.map(item => {
+          // A. Update "Đo đạc hiện trạng" (ID '1')
+          if (item.id === '1') {
+              return { ...item, price: surveyPrice };
+          }
+          // B. Update "Phí kiểm tra bản vẽ" (ID '5') = (Đo đạc + Kí BB) * 25%
+          if (item.id === '5') {
+              const totalForInspect = surveyCost + minutesCost;
+              return { ...item, price: totalForInspect * 0.25 };
+          }
+          // C. Update "Thuế Chuyển nhượng" (ID '16') = (DT * 2.5) * ViTri
+          if (item.id === '16') {
+              return { ...item, price: (area * 2.5) * locationPrice };
+          }
+          // D. Update "Thuế Chuyển MĐSD" (ID '19') = DT * ViTri
+          if (item.id === '19') {
+              return { ...item, price: area * locationPrice };
+          }
+          return item;
+      });
+  }
+
+  const handleAreaChange = (newArea: number) => {
+      const updatedItems = updateAutoCalculatedItems(formData.items, newArea, formData.landType, formData.locationPrice);
+      setFormData(prev => ({ ...prev, area: newArea, items: updatedItems }));
+  }
+
+  const handleLandTypeChange = (newType: 'URBAN' | 'RURAL') => {
+      const updatedItems = updateAutoCalculatedItems(formData.items, formData.area, newType, formData.locationPrice);
+      setFormData(prev => ({ ...prev, landType: newType, items: updatedItems }));
+  }
+
+  const handleLocationPriceChange = (newPrice: number) => {
+      const updatedItems = updateAutoCalculatedItems(formData.items, formData.area, formData.landType, newPrice);
+      setFormData(prev => ({ ...prev, locationPrice: newPrice, items: updatedItems }));
+  }
+
+  // Also re-trigger calculation when toggling specific items (like Survey or Minutes)
+  const handleItemToggle = (index: number, checked: boolean) => {
+      const newItems = [...formData.items];
+      newItems[index] = { ...newItems[index], isEnabled: checked };
+      
+      // If toggling items that affect calculation, we need to recalc others
+      const recalcedItems = updateAutoCalculatedItems(newItems, formData.area, formData.landType, formData.locationPrice);
+      setFormData({ ...formData, items: recalcedItems });
+  }
 
   const handleAddCustomItem = () => {
     const newItem: QuoteItem = {
@@ -93,6 +209,39 @@ const Quotations: React.FC<QuotationsProps> = ({
       return item.isEnabled ? sum + item.price : sum;
     }, 0);
   };
+
+  // --- File Upload Handlers ---
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files.length > 0) {
+          setIsUploading(true);
+          const files = Array.from(e.target.files);
+          const newAttachments: Attachment[] = [];
+
+          try {
+            for (const file of files) {
+                const url = await uploadFile(file);
+                const isPdf = file.type === 'application/pdf';
+                
+                newAttachments.push({
+                    id: `DOC-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                    name: file.name,
+                    type: isPdf ? 'PDF' : 'IMAGE',
+                    url: url,
+                    uploadDate: new Date().toISOString().split('T')[0]
+                });
+            }
+            setFormData(prev => ({ ...prev, attachments: [...prev.attachments, ...newAttachments] }));
+          } catch (error) {
+              alert("Lỗi khi tải file lên.");
+          } finally {
+              setIsUploading(false);
+          }
+      }
+  };
+
+  const handleRemoveAttachment = (id: string) => {
+      setFormData(prev => ({ ...prev, attachments: prev.attachments.filter(a => a.id !== id) }));
+  }
 
   const generateNewId = () => {
       const conf = systemConfig.quoteIdConfig;
@@ -123,8 +272,14 @@ const Quotations: React.FC<QuotationsProps> = ({
             customerId: formData.customerId,
             customerName: customer?.name || 'Unknown',
             status: finalStatus,
+            type: formData.type,
             items: formData.items,
-            totalAmount: totalAmount
+            totalAmount: totalAmount,
+            attachments: formData.attachments,
+            area: formData.area,
+            landType: formData.landType,
+            locationPrice: formData.locationPrice,
+            isCustomerAccepted: formData.isCustomerAccepted
         });
     } else {
         onAddQuote({
@@ -132,9 +287,15 @@ const Quotations: React.FC<QuotationsProps> = ({
             customerId: formData.customerId,
             customerName: customer?.name || 'Unknown',
             status: finalStatus,
+            type: formData.type,
             createdDate: new Date().toISOString().split('T')[0],
             items: formData.items,
-            totalAmount: totalAmount
+            totalAmount: totalAmount,
+            attachments: formData.attachments,
+            area: formData.area,
+            landType: formData.landType,
+            locationPrice: formData.locationPrice,
+            isCustomerAccepted: false
         });
     }
 
@@ -155,6 +316,12 @@ const Quotations: React.FC<QuotationsProps> = ({
     setIsModalOpen(false);
   };
 
+  // Quick Action for Customer Acceptance (from Table)
+  const toggleCustomerAccepted = (quote: Quote) => {
+      const updated = { ...quote, isCustomerAccepted: !quote.isCustomerAccepted };
+      onUpdateQuote(updated);
+  }
+
   // Helper function to format number with dots
   const formatCurrency = (val: number) => {
     return val.toLocaleString('vi-VN');
@@ -171,68 +338,117 @@ const Quotations: React.FC<QuotationsProps> = ({
   const isApproved = editingQuote?.status === QuoteStatus.APPROVED;
   const isPending = editingQuote?.status === QuoteStatus.PENDING_APPROVAL;
   
-  // Strict Lock: If approved, no one can edit details. 
+  // Strict Lock: If approved, no one can edit details (except customer accepted status toggle by director/accountant)
   const isStrictlyLocked = isApproved;
 
   const getStatusBadge = (status: QuoteStatus) => {
     const statusConfig = systemConfig.statusLabels[status];
     const label = statusConfig ? statusConfig.label : status;
-    switch (status) {
-      case QuoteStatus.DRAFT: return <span className="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs">{label}</span>;
-      case QuoteStatus.PENDING_APPROVAL: return <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">{label}</span>;
-      case QuoteStatus.APPROVED: return <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs">{label}</span>;
-      case QuoteStatus.REJECTED: return <span className="px-2 py-1 bg-red-100 text-red-800 rounded text-xs">{label}</span>;
-      default: return <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded text-xs">{label}</span>;
-    }
+    // Use configured color
+    const color = statusConfig ? statusConfig.color : '#6b7280';
+    return (
+        <span 
+            className="px-2 py-1 rounded text-xs font-medium border"
+            style={{ 
+                backgroundColor: `${color}20`, 
+                color: color, 
+                borderColor: `${color}40`
+            }}
+        >
+            {label}
+        </span>
+    );
   };
+
+  // Filter Quotes
+  const filteredQuotes = quotes.filter(q => 
+      q.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      q.customerName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-gray-800">Báo giá & Hợp đồng</h2>
-        <button 
-          onClick={() => { setEditingQuote(null); setIsModalOpen(true); }}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-        >
-          <FilePlus size={18} className="mr-2" /> Tạo báo giá
-        </button>
+        <div className="flex gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-initial">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                <input 
+                  type="text" 
+                  placeholder="Tìm mã, khách hàng..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+                />
+            </div>
+            <button 
+                onClick={() => { setEditingQuote(null); setIsModalOpen(true); }}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center shrink-0"
+            >
+                <FilePlus size={18} className="mr-2" /> Tạo báo giá
+            </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-left">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Mã BG</th>
-              <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Khách hàng</th>
-              <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Ngày tạo</th>
-              <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase text-right">Tổng tiền</th>
-              <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
-              <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {quotes.map((quote) => (
-              <tr key={quote.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 font-medium text-blue-600">{quote.id}</td>
-                <td className="px-6 py-4">{quote.customerName}</td>
-                <td className="px-6 py-4 text-sm text-gray-500">{quote.createdDate}</td>
-                <td className="px-6 py-4 text-right font-medium text-lg">{formatCurrency(quote.totalAmount)} đ</td>
-                <td className="px-6 py-4">{getStatusBadge(quote.status)}</td>
-                <td className="px-6 py-4">
-                  <div className="flex space-x-3 text-gray-500">
-                    <button 
-                      onClick={() => { setEditingQuote(quote); setIsModalOpen(true); }}
-                      className="hover:text-blue-600 flex items-center" 
-                      title={quote.status === QuoteStatus.APPROVED ? "Xem chi tiết" : "Sửa / Duyệt"}
-                    >
-                      {quote.status === QuoteStatus.APPROVED ? <Eye size={18}/> : <Edit size={18}/>}
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+            <table className="w-full text-left">
+            <thead className="bg-gray-50 border-b">
+                <tr>
+                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Mã BG</th>
+                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Loại</th>
+                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Khách hàng</th>
+                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Ngày tạo</th>
+                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase text-right">Tổng tiền</th>
+                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Trạng thái</th>
+                <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+                {filteredQuotes.map((quote) => (
+                <tr key={quote.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 font-medium text-blue-600">{quote.id}</td>
+                    <td className="px-6 py-4 text-sm font-semibold text-gray-600">
+                        {quote.type === 'DRAWING' ? 'Ra Bản Vẽ' : 'Ra Giấy Mới'}
+                    </td>
+                    <td className="px-6 py-4">{quote.customerName}</td>
+                    <td className="px-6 py-4 text-sm text-gray-500">{quote.createdDate}</td>
+                    <td className="px-6 py-4 text-right font-medium text-lg">{formatCurrency(quote.totalAmount)} đ</td>
+                    <td className="px-6 py-4">
+                        <div className="flex flex-col space-y-1">
+                            {getStatusBadge(quote.status)}
+                            {quote.status === QuoteStatus.APPROVED && (
+                                <button 
+                                    onClick={() => toggleCustomerAccepted(quote)}
+                                    className={`text-xs px-2 py-0.5 rounded-full flex items-center w-fit border transition cursor-pointer ${
+                                        quote.isCustomerAccepted 
+                                        ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' 
+                                        : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                                    }`}
+                                    title="Click để đổi trạng thái"
+                                >
+                                    {quote.isCustomerAccepted ? <CheckCircle size={10} className="mr-1"/> : <UserCheck size={10} className="mr-1"/>} 
+                                    {quote.isCustomerAccepted ? 'Khách chốt' : 'Chưa chốt'}
+                                </button>
+                            )}
+                        </div>
+                    </td>
+                    <td className="px-6 py-4">
+                    <div className="flex space-x-3 text-gray-500">
+                        <button 
+                        onClick={() => { setEditingQuote(quote); setIsModalOpen(true); }}
+                        className="hover:text-blue-600 flex items-center" 
+                        title={quote.status === QuoteStatus.APPROVED ? "Xem chi tiết / Cập nhật chốt" : "Sửa / Duyệt"}
+                        >
+                        {quote.status === QuoteStatus.APPROVED ? <Eye size={18}/> : <Edit size={18}/>}
+                        </button>
+                    </div>
+                    </td>
+                </tr>
+                ))}
+            </tbody>
+            </table>
+        </div>
       </div>
 
       {/* Modern Modal Create/Edit Quote */}
@@ -320,12 +536,96 @@ const Quotations: React.FC<QuotationsProps> = ({
                 </div>
               </div>
 
+              {/* Area Input for Auto-calculation */}
+              {!isStrictlyLocked && (
+                  <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                      <div className="flex flex-col md:flex-row md:items-end gap-4 mb-4">
+                          <div className="flex-1">
+                              <label className="block text-sm font-bold text-blue-800 mb-1">Nhập Diện tích (m²)</label>
+                              <input 
+                                  type="number" 
+                                  step="0.1"
+                                  value={formData.area || ''}
+                                  onChange={(e) => handleAreaChange(parseFloat(e.target.value) || 0)}
+                                  className="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 font-mono text-blue-900"
+                                  placeholder="Nhập diện tích..."
+                              />
+                          </div>
+                          <div className="flex-1">
+                              <label className="block text-sm font-bold text-blue-800 mb-1">Giá vị trí đất (VNĐ/m²)</label>
+                              <input 
+                                  type="text" 
+                                  value={formatCurrency(formData.locationPrice)}
+                                  onChange={(e) => handleLocationPriceChange(parseCurrency(e.target.value))}
+                                  className="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 font-mono text-blue-900"
+                                  placeholder="Nhập giá đất..."
+                              />
+                          </div>
+                          <div>
+                              <label className="block text-sm font-bold text-gray-700 mb-1">Khu vực</label>
+                              <div className="flex items-center space-x-4 bg-white border rounded px-3 py-2">
+                                  <label className="flex items-center cursor-pointer">
+                                      <input 
+                                        type="radio" 
+                                        name="landType" 
+                                        value="URBAN" 
+                                        checked={formData.landType === 'URBAN'}
+                                        onChange={() => handleLandTypeChange('URBAN')}
+                                        className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                                      />
+                                      <span className="ml-2 text-sm text-gray-700">Đô thị</span>
+                                  </label>
+                                  <label className="flex items-center cursor-pointer">
+                                      <input 
+                                        type="radio" 
+                                        name="landType" 
+                                        value="RURAL" 
+                                        checked={formData.landType === 'RURAL'}
+                                        onChange={() => handleLandTypeChange('RURAL')}
+                                        className="w-4 h-4 text-green-600 focus:ring-green-500"
+                                      />
+                                      <span className="ml-2 text-sm text-gray-700">Ngoài Đô thị</span>
+                                  </label>
+                              </div>
+                          </div>
+                      </div>
+                      <div className="text-xs text-blue-600 italic border-t border-blue-100 pt-2">
+                          * Hệ thống tự động tính: 
+                          <span className="font-semibold mx-1">Phí đo đạc</span>, 
+                          <span className="font-semibold mx-1">Phí kiểm tra (25%)</span>, 
+                          <span className="font-semibold mx-1">Thuế CN (DT*2.5*Giá)</span> và 
+                          <span className="font-semibold mx-1">Thuế CMĐSD (DT*Giá)</span>.
+                      </div>
+                  </div>
+              )}
+
               {/* Items Table */}
-              <div className="mb-4">
+              <div className="mb-6">
                 <div className="flex justify-between items-center mb-3">
-                  <h4 className="font-bold text-gray-800 flex items-center">
-                    Chi tiết hạng mục & Chi phí
-                  </h4>
+                  <div className="flex items-center space-x-4">
+                      <h4 className="font-bold text-gray-800 flex items-center">
+                        Chi tiết hạng mục & Chi phí
+                      </h4>
+                      {/* TYPE SWITCHER */}
+                      {!isStrictlyLocked && (
+                          <div className="flex bg-gray-100 p-1 rounded-lg">
+                              <button 
+                                type="button"
+                                onClick={() => handleTypeChange('DRAWING')}
+                                className={`px-3 py-1 text-xs font-medium rounded-md transition ${formData.type === 'DRAWING' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                              >
+                                  Ra Bản Vẽ
+                              </button>
+                              <button 
+                                type="button"
+                                onClick={() => handleTypeChange('NEW_CERTIFICATE')}
+                                className={`px-3 py-1 text-xs font-medium rounded-md transition ${formData.type === 'NEW_CERTIFICATE' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                              >
+                                  Ra Giấy Mới
+                              </button>
+                          </div>
+                      )}
+                  </div>
                   {!isStrictlyLocked && (
                     <button 
                         type="button" 
@@ -355,7 +655,7 @@ const Quotations: React.FC<QuotationsProps> = ({
                                             type="checkbox"
                                             disabled={isStrictlyLocked}
                                             checked={item.isEnabled}
-                                            onChange={(e) => handleItemChange(index, 'isEnabled', e.target.checked)}
+                                            onChange={(e) => handleItemToggle(index, e.target.checked)}
                                             className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                                         />
                                     </td>
@@ -409,13 +709,64 @@ const Quotations: React.FC<QuotationsProps> = ({
                     </table>
                 </div>
               </div>
+
+               {/* Attachments Section */}
+               <div className="mb-4">
+                 <h4 className="font-bold text-gray-800 mb-2 flex items-center">
+                     <Paperclip size={18} className="mr-2"/> Tài liệu đính kèm (Sổ đỏ, Giấy tờ đất...)
+                 </h4>
+                 <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                     {!isStrictlyLocked && (
+                        <div className="flex gap-2 mb-3">
+                             <div className="relative flex-1">
+                                 <input 
+                                    type="file" 
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    accept="image/*,application/pdf"
+                                    multiple
+                                    onChange={handleFileChange}
+                                 />
+                                 <div className="border rounded px-3 py-2 text-sm bg-white text-gray-500 text-center flex items-center justify-center hover:bg-gray-100 cursor-pointer">
+                                     <Upload size={16} className="mr-2"/> 
+                                     {isUploading ? "Đang tải lên..." : "Click để tải ảnh/Sổ đỏ"}
+                                 </div>
+                             </div>
+                        </div>
+                     )}
+                     <div className="space-y-1">
+                         {(formData.attachments || []).map(att => (
+                             <div key={att.id} className="flex justify-between items-center bg-white p-2 rounded border border-gray-100 text-sm">
+                                 <div className="flex items-center overflow-hidden">
+                                     {att.type === 'PDF' ? <FileIcon size={14} className="text-red-500 mr-2 shrink-0"/> : <ImageIcon size={14} className="text-blue-500 mr-2 shrink-0"/>}
+                                     <a href={att.url} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center truncate">
+                                         {att.name}
+                                         <Eye size={12} className="ml-2 text-gray-400 hover:text-blue-600"/>
+                                     </a>
+                                 </div>
+                                 {!isStrictlyLocked && (
+                                    <button type="button" onClick={() => handleRemoveAttachment(att.id)} className="text-gray-400 hover:text-red-500">
+                                        <Trash2 size={14}/>
+                                    </button>
+                                 )}
+                             </div>
+                         ))}
+                         {isUploading && (
+                             <div className="text-xs text-blue-600 flex items-center animate-pulse">
+                                 <Loader2 size={12} className="mr-1 animate-spin" /> Đang xử lý file...
+                             </div>
+                         )}
+                         {!isUploading && (formData.attachments || []).length === 0 && <p className="text-xs text-gray-400 italic">Chưa có tài liệu nào.</p>}
+                     </div>
+                 </div>
+               </div>
+
             </form>
             
             {/* 3. Action Footer */}
             <div className="p-4 border-t bg-gray-50 flex justify-between items-center">
                  {/* Left status info */}
                  <div className="text-sm text-gray-500 italic">
-                    {isStrictlyLocked ? 'Báo giá đã khóa, không thể chỉnh sửa.' : ''}
+                    {isStrictlyLocked ? 'Báo giá đã duyệt.' : ''}
                  </div>
 
                  {/* Right Action Buttons */}
@@ -464,6 +815,22 @@ const Quotations: React.FC<QuotationsProps> = ({
                                 <CheckSquare size={18} className="mr-2" /> Phê Duyệt & Ký
                             </button>
                         </>
+                    )}
+
+                    {/* If Approved, show Toggle Customer Acceptance */}
+                    {isApproved && (
+                        <button 
+                            type="button"
+                            onClick={() => {
+                                setFormData(prev => ({...prev, isCustomerAccepted: !prev.isCustomerAccepted}));
+                                // Trigger save immediately
+                                setTimeout(() => document.getElementById('quote-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true })), 100);
+                            }}
+                            className={`px-4 py-2 rounded-lg font-medium flex items-center shadow-sm border ${formData.isCustomerAccepted ? 'bg-green-100 text-green-800 border-green-200' : 'bg-white text-gray-600 border-gray-300'}`}
+                        >
+                            {formData.isCustomerAccepted ? <CheckCircle size={18} className="mr-2"/> : <UserCheck size={18} className="mr-2"/>}
+                            {formData.isCustomerAccepted ? 'Khách Đã Chốt' : 'Đánh dấu Khách Chốt'}
+                        </button>
                     )}
 
                     {/* If Draft, Director can also just save/edit */}

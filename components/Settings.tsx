@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
-import { SystemConfig, QuoteStatus, IdConfig, CommissionRule } from '../types';
-import { Plus, Trash2, Save, Settings as SettingsIcon, DollarSign, Tag, Hash, Eye, Ruler, List } from 'lucide-react';
+import { SystemConfig, QuoteStatus, IdConfig, CommissionRule, QuoteAreaRule } from '../types';
+import { Plus, Trash2, Save, Settings as SettingsIcon, DollarSign, Tag, Hash, Eye, Ruler, List, Calculator, FileText, CheckSquare } from 'lucide-react';
 
 interface SettingsProps {
   config: SystemConfig;
@@ -15,27 +16,30 @@ const Settings: React.FC<SettingsProps> = ({ config, onUpdateConfig }) => {
   const [newProjectTypeColor, setNewProjectTypeColor] = useState('#3b82f6'); // Default Blue
 
   // --- Cost Items Handlers ---
-  const handleCostChange = (id: string, field: 'name' | 'defaultPrice', value: string | number) => {
-    const updatedCosts = localConfig.costItems.map(item => 
+  const handleCostChange = (type: 'drawing' | 'newCert', id: string, field: 'name' | 'defaultPrice', value: string | number) => {
+    const configKey = type === 'drawing' ? 'drawingCostItems' : 'newCertCostItems';
+    const updatedCosts = localConfig[configKey].map(item => 
       item.id === id ? { ...item, [field]: value } : item
     );
-    setLocalConfig({ ...localConfig, costItems: updatedCosts });
+    setLocalConfig({ ...localConfig, [configKey]: updatedCosts });
     setHasChanges(true);
   };
 
-  const  addCostItem = () => {
+  const addCostItem = (type: 'drawing' | 'newCert') => {
+    const configKey = type === 'drawing' ? 'drawingCostItems' : 'newCertCostItems';
     const newItem = {
       id: `COST-${Date.now()}`,
       name: 'Chi phí mới',
       defaultPrice: 0
     };
-    setLocalConfig({ ...localConfig, costItems: [...localConfig.costItems, newItem] });
+    setLocalConfig({ ...localConfig, [configKey]: [...localConfig[configKey], newItem] });
     setHasChanges(true);
   };
 
-  const removeCostItem = (id: string) => {
-    const updatedCosts = localConfig.costItems.filter(item => item.id !== id);
-    setLocalConfig({ ...localConfig, costItems: updatedCosts });
+  const removeCostItem = (type: 'drawing' | 'newCert', id: string) => {
+    const configKey = type === 'drawing' ? 'drawingCostItems' : 'newCertCostItems';
+    const updatedCosts = localConfig[configKey].filter(item => item.id !== id);
+    setLocalConfig({ ...localConfig, [configKey]: updatedCosts });
     setHasChanges(true);
   };
 
@@ -62,6 +66,33 @@ const Settings: React.FC<SettingsProps> = ({ config, onUpdateConfig }) => {
   const removeCommissionRule = (id: string) => {
       const updatedRules = localConfig.commissionRules.filter(rule => rule.id !== id);
       setLocalConfig({ ...localConfig, commissionRules: updatedRules });
+      setHasChanges(true);
+  }
+
+  // --- Quote Area Rules Handlers ---
+  const handleQuoteAreaChange = (id: string, field: keyof QuoteAreaRule, value: number) => {
+      const updatedRules = (localConfig.quoteAreaRules || []).map(rule => 
+        rule.id === id ? { ...rule, [field]: value } : rule
+      );
+      setLocalConfig({ ...localConfig, quoteAreaRules: updatedRules });
+      setHasChanges(true);
+  };
+
+  const addQuoteAreaRule = () => {
+      const newRule: QuoteAreaRule = {
+          id: `QR-${Date.now()}`,
+          minArea: 0,
+          maxArea: 0,
+          priceUrban: 0,
+          priceRural: 0
+      };
+      setLocalConfig({ ...localConfig, quoteAreaRules: [...(localConfig.quoteAreaRules || []), newRule] });
+      setHasChanges(true);
+  }
+
+  const removeQuoteAreaRule = (id: string) => {
+      const updatedRules = (localConfig.quoteAreaRules || []).filter(rule => rule.id !== id);
+      setLocalConfig({ ...localConfig, quoteAreaRules: updatedRules });
       setHasChanges(true);
   }
 
@@ -215,39 +246,77 @@ const Settings: React.FC<SettingsProps> = ({ config, onUpdateConfig }) => {
           </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-             {/* Cost Configuration */}
+             {/* Cost Configuration - DRAWING */}
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
                 <div className="flex justify-between items-center mb-4 pb-2 border-b">
                     <h3 className="font-bold text-gray-800 flex items-center">
-                    <DollarSign size={20} className="mr-2 text-green-600" /> Các loại chi phí mặc định
+                    <FileText size={20} className="mr-2 text-blue-600" /> Hạng mục RA BẢN VẼ
                     </h3>
-                    <button onClick={addCostItem} className="text-sm bg-green-50 text-green-700 px-2 py-1 rounded hover:bg-green-100 flex items-center">
-                    <Plus size={14} className="mr-1" /> Thêm loại
+                    <button onClick={() => addCostItem('drawing')} className="text-sm bg-blue-50 text-blue-700 px-2 py-1 rounded hover:bg-blue-100 flex items-center">
+                    <Plus size={14} className="mr-1" /> Thêm
                     </button>
                 </div>
-                <div className="space-y-3">
-                    {localConfig.costItems.map((item) => (
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                    {localConfig.drawingCostItems.map((item) => (
                     <div key={item.id} className="flex items-center gap-2">
                         <input 
                         type="text" 
                         value={item.name} 
-                        onChange={(e) => handleCostChange(item.id, 'name', e.target.value)}
+                        onChange={(e) => handleCostChange('drawing', item.id, 'name', e.target.value)}
                         className="flex-1 border rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
                         placeholder="Tên chi phí"
                         />
                         <input 
                         type="number" 
                         value={item.defaultPrice} 
-                        onChange={(e) => handleCostChange(item.id, 'defaultPrice', parseInt(e.target.value) || 0)}
+                        onChange={(e) => handleCostChange('drawing', item.id, 'defaultPrice', parseInt(e.target.value) || 0)}
                         className="w-32 border rounded px-3 py-2 text-sm text-right focus:ring-2 focus:ring-blue-500"
                         placeholder="0"
                         />
-                        <button onClick={() => removeCostItem(item.id)} className="text-red-400 hover:text-red-600 p-2">
+                        <button onClick={() => removeCostItem('drawing', item.id)} className="text-red-400 hover:text-red-600 p-2">
                         <Trash2 size={16} />
                         </button>
                     </div>
                     ))}
-                    {localConfig.costItems.length === 0 && (
+                    {localConfig.drawingCostItems.length === 0 && (
+                    <p className="text-sm text-gray-400 italic text-center py-4">Chưa có cấu hình chi phí.</p>
+                    )}
+                </div>
+            </div>
+
+            {/* Cost Configuration - NEW CERT */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                <div className="flex justify-between items-center mb-4 pb-2 border-b">
+                    <h3 className="font-bold text-gray-800 flex items-center">
+                    <CheckSquare size={20} className="mr-2 text-green-600" /> Hạng mục RA GIẤY MỚI
+                    </h3>
+                    <button onClick={() => addCostItem('newCert')} className="text-sm bg-green-50 text-green-700 px-2 py-1 rounded hover:bg-green-100 flex items-center">
+                    <Plus size={14} className="mr-1" /> Thêm
+                    </button>
+                </div>
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                    {localConfig.newCertCostItems.map((item) => (
+                    <div key={item.id} className="flex items-center gap-2">
+                        <input 
+                        type="text" 
+                        value={item.name} 
+                        onChange={(e) => handleCostChange('newCert', item.id, 'name', e.target.value)}
+                        className="flex-1 border rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                        placeholder="Tên chi phí"
+                        />
+                        <input 
+                        type="number" 
+                        value={item.defaultPrice} 
+                        onChange={(e) => handleCostChange('newCert', item.id, 'defaultPrice', parseInt(e.target.value) || 0)}
+                        className="w-32 border rounded px-3 py-2 text-sm text-right focus:ring-2 focus:ring-blue-500"
+                        placeholder="0"
+                        />
+                        <button onClick={() => removeCostItem('newCert', item.id)} className="text-red-400 hover:text-red-600 p-2">
+                        <Trash2 size={16} />
+                        </button>
+                    </div>
+                    ))}
+                    {localConfig.newCertCostItems.length === 0 && (
                     <p className="text-sm text-gray-400 italic text-center py-4">Chưa có cấu hình chi phí.</p>
                     )}
                 </div>
@@ -348,6 +417,74 @@ const Settings: React.FC<SettingsProps> = ({ config, onUpdateConfig }) => {
                     ))}
                     {localConfig.commissionRules.length === 0 && (
                         <p className="text-sm text-gray-400 italic text-center py-4">Chưa có định mức.</p>
+                    )}
+                </div>
+            </div>
+
+            {/* Quote Price by Area Config */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                <div className="flex justify-between items-center mb-4 pb-2 border-b">
+                    <h3 className="font-bold text-gray-800 flex items-center">
+                    <Calculator size={20} className="mr-2 text-blue-600" /> Bảng giá Báo giá (Đô thị / Ngoài Đô thị)
+                    </h3>
+                    <button onClick={addQuoteAreaRule} className="text-sm bg-blue-50 text-blue-700 px-2 py-1 rounded hover:bg-blue-100 flex items-center">
+                    <Plus size={14} className="mr-1" /> Thêm mức
+                    </button>
+                </div>
+                <div className="space-y-3">
+                    {/* Fixed Layout for Header */}
+                    <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-gray-500 mb-1 px-1">
+                        <div className="col-span-2">Từ (m²)</div>
+                        <div className="col-span-2">Đến (m²)</div>
+                        <div className="col-span-3 text-right">Giá Đô Thị</div>
+                        <div className="col-span-3 text-right">Giá Ngoài ĐT</div>
+                        <div className="col-span-1"></div>
+                    </div>
+                    {(localConfig.quoteAreaRules || []).map((rule) => (
+                    <div key={rule.id} className="grid grid-cols-12 gap-2 items-center">
+                        <div className="col-span-2">
+                            <input 
+                                type="number" 
+                                value={rule.minArea} 
+                                onChange={(e) => handleQuoteAreaChange(rule.id, 'minArea', parseFloat(e.target.value) || 0)}
+                                className="w-full border rounded px-2 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        <div className="col-span-2">
+                            <input 
+                                type="number" 
+                                value={rule.maxArea} 
+                                onChange={(e) => handleQuoteAreaChange(rule.id, 'maxArea', parseFloat(e.target.value) || 0)}
+                                className="w-full border rounded px-2 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        <div className="col-span-3">
+                            <input 
+                                type="number" 
+                                value={rule.priceUrban} 
+                                onChange={(e) => handleQuoteAreaChange(rule.id, 'priceUrban', parseInt(e.target.value) || 0)}
+                                className="w-full border rounded px-2 py-2 text-sm text-right focus:ring-2 focus:ring-blue-500 font-medium text-blue-600"
+                                placeholder="Đô thị"
+                            />
+                        </div>
+                        <div className="col-span-3">
+                            <input 
+                                type="number" 
+                                value={rule.priceRural} 
+                                onChange={(e) => handleQuoteAreaChange(rule.id, 'priceRural', parseInt(e.target.value) || 0)}
+                                className="w-full border rounded px-2 py-2 text-sm text-right focus:ring-2 focus:ring-blue-500 font-medium text-green-600"
+                                placeholder="Ngoài ĐT"
+                            />
+                        </div>
+                        <div className="col-span-1 text-center">
+                            <button onClick={() => removeQuoteAreaRule(rule.id)} className="text-red-400 hover:text-red-600 p-2">
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
+                    </div>
+                    ))}
+                    {(!localConfig.quoteAreaRules || localConfig.quoteAreaRules.length === 0) && (
+                        <p className="text-sm text-gray-400 italic text-center py-4">Chưa có định mức giá báo giá.</p>
                     )}
                 </div>
             </div>

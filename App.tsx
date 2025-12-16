@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, FolderKanban, Users, FileText, Settings as SettingsIcon, LogOut, Briefcase, ShieldCheck, Bell, HardHat, User as UserIcon, Camera, Save, X, Menu, Loader2 } from 'lucide-react';
 import { Project, Customer, Employee, Quote, ProjectStatus, QuoteStatus, Role, User, Office, SystemConfig, Notification } from './types';
@@ -48,9 +49,9 @@ const MOCK_PROJECTS: Project[] = [
 ];
 
 const MOCK_CUSTOMERS: Customer[] = [
-  { id: 'C1', name: 'Nguyễn Văn A', phone: '0909123456', email: 'nguyenvana@gmail.com', type: 'Cá nhân', address: 'TP.HCM' },
-  { id: 'C2', name: 'Công ty BDS Hưng Thịnh', phone: '02838383838', email: 'contact@hungthinh.vn', type: 'Doanh nghiệp', address: 'TP. Thủ Đức' },
-  { id: 'C3', name: 'Lê Thị C', phone: '0912345678', email: 'lethic@yahoo.com', type: 'Môi giới', address: 'Bình Dương' },
+  { id: 'C1', name: 'Nguyễn Văn A', cccd: '079090123456', phone: '0909123456', email: 'nguyenvana@gmail.com', type: 'Cá nhân', address: 'TP.HCM' },
+  { id: 'C2', name: 'Công ty BDS Hưng Thịnh', cccd: '', phone: '02838383838', email: 'contact@hungthinh.vn', type: 'Doanh nghiệp', address: 'TP. Thủ Đức' },
+  { id: 'C3', name: 'Lê Thị C', cccd: '072195123456', phone: '0912345678', email: 'lethic@yahoo.com', type: 'Môi giới', address: 'Bình Dương' },
 ];
 
 const MOCK_EMPLOYEES: Employee[] = [
@@ -84,11 +85,28 @@ const MOCK_EMPLOYEES: Employee[] = [
 ];
 
 const INITIAL_CONFIG: SystemConfig = {
-    costItems: [
-        { id: '1', name: 'Phí đo đạc hiện trạng', defaultPrice: 500000 },
-        { id: '2', name: 'Phí lập bản vẽ nội nghiệp', defaultPrice: 300000 },
-        { id: '3', name: 'Phí trích lục bản đồ', defaultPrice: 200000 },
-        { id: '4', name: 'Phí cắm mốc ranh giới', defaultPrice: 1000000 },
+    drawingCostItems: [
+        { id: '1', name: 'Đo đạc hiện trạng', defaultPrice: 0 }, 
+        { id: '2', name: 'Mua dữ liệu', defaultPrice: 1000000 },
+        { id: '3', name: 'Kí Biên bản ở xã', defaultPrice: 1000000 },
+        { id: '4', name: 'Rút cấp đổi (nếu có)', defaultPrice: 500000 },
+        { id: '5', name: 'Phí kiểm tra bản vẽ (25%)', defaultPrice: 0 }, 
+        { id: '6', name: 'Kí duyệt bản vẽ', defaultPrice: 1000000 },
+        { id: '7', name: 'Xác minh lộn thửa (6tr/thửa)', defaultPrice: 6000000 },
+        { id: '8', name: 'Tăng diện tích (10tr/1000m2)', defaultPrice: 10000000 },
+    ],
+    newCertCostItems: [
+        { id: '9', name: 'CC + Soạn HĐ Chuyển nhượng', defaultPrice: 3000000 },
+        { id: '10', name: 'Ủy quyền', defaultPrice: 3000000 },
+        { id: '11', name: 'Cập nhật hạn sử dụng đất', defaultPrice: 1000000 },
+        { id: '12', name: 'Xóa hộ', defaultPrice: 6000000 },
+        { id: '13', name: 'Giấy mới', defaultPrice: 2000000 },
+        { id: '14', name: 'Trích lục hồ gốc', defaultPrice: 1000000 },
+        { id: '15', name: 'Điều chỉnh CMND sang CCCD', defaultPrice: 1000000 },
+        { id: '16', name: 'Thuế Chuyển nhượng (Auto)', defaultPrice: 0 }, 
+        { id: '17', name: 'CC, Soạn HĐ Tặng cho', defaultPrice: 3000000 },
+        { id: '18', name: 'CC, Soạn HĐ Thừa kế', defaultPrice: 8000000 },
+        { id: '19', name: 'Thuế Chuyển MĐSD (Auto)', defaultPrice: 0 }, 
     ],
     statusLabels: {
         [QuoteStatus.DRAFT]: { label: 'Nháp', color: '#9ca3af' },
@@ -118,17 +136,29 @@ const INITIAL_CONFIG: SystemConfig = {
         absenceFine: 200000,
         insurancePercent: 10.5,
         insuranceBase: 'BASIC'
-    }
+    },
+    quoteAreaRules: [
+        { id: 'Q1', minArea: 0, maxArea: 99.9, priceUrban: 1031000, priceRural: 704000 },
+        { id: 'Q2', minArea: 100, maxArea: 300, priceUrban: 1224000, priceRural: 836000 },
+        { id: 'Q3', minArea: 301, maxArea: 500, priceUrban: 1297000, priceRural: 889000 },
+        { id: 'Q4', minArea: 501, maxArea: 1000, priceUrban: 1589000, priceRural: 1082000 },
+        { id: 'Q5', minArea: 1001, maxArea: 3000, priceUrban: 2179000, priceRural: 1482000 },
+        { id: 'Q6', minArea: 3001, maxArea: 10000, priceUrban: 3347000, priceRural: 2285000 },
+        { id: 'Q7', minArea: 10001, maxArea: 100000, priceUrban: 4015000, priceRural: 2741000 }, // 1ha - 10ha
+        { id: 'Q8', minArea: 100001, maxArea: 500000, priceUrban: 4350000, priceRural: 2970000 }, // 10ha - 50ha
+    ]
 }
 
 const MOCK_QUOTES: Quote[] = [
   { 
-    id: 'BG-23-112', customerId: 'C2', customerName: 'Công ty BDS Hưng Thịnh', totalAmount: 1500000, status: QuoteStatus.PENDING_APPROVAL, createdDate: '2023-10-04', 
-    items: [{ id: '1', name: 'Phí đo đạc hiện trạng', price: 500000, isEnabled: true, isCustom: false }, { id: '4', name: 'Phí cắm mốc ranh giới', price: 1000000, isEnabled: true, isCustom: false }] 
+    id: 'BG-23-112', customerId: 'C2', customerName: 'Công ty BDS Hưng Thịnh', totalAmount: 1500000, status: QuoteStatus.PENDING_APPROVAL, createdDate: '2023-10-04', type: 'DRAWING',
+    items: [{ id: '1', name: 'Phí đo đạc hiện trạng', price: 500000, isEnabled: true, isCustom: false }, { id: '4', name: 'Rút cấp đổi (nếu có)', price: 1000000, isEnabled: true, isCustom: false }],
+    attachments: []
   },
   { 
-    id: 'BG-23-110', customerId: 'C1', customerName: 'Nguyễn Văn A', totalAmount: 2000000, status: QuoteStatus.APPROVED, createdDate: '2024-01-14', 
-    items: [{ id: '1', name: 'Phí đo đạc hiện trạng', price: 2000000, isEnabled: true, isCustom: false }]
+    id: 'BG-23-110', customerId: 'C1', customerName: 'Nguyễn Văn A', totalAmount: 2000000, status: QuoteStatus.APPROVED, createdDate: '2024-01-14', type: 'DRAWING',
+    items: [{ id: '1', name: 'Phí đo đạc hiện trạng', price: 2000000, isEnabled: true, isCustom: false }],
+    attachments: []
   },
 ];
 
@@ -294,13 +324,14 @@ const App: React.FC = () => {
             offices={offices}
             quotes={quotes}
             employees={employees}
+            currentUser={currentUserMock}
             systemConfig={systemConfig}
             onAddProject={handleAddProject}
             onUpdateProject={handleUpdateProject}
           />
         );
       case View.CRM:
-        return <CRM customers={customers} projects={projects} quotes={quotes} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} />;
+        return <CRM customers={customers} projects={projects} quotes={quotes} systemConfig={systemConfig} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} />;
       case View.HRM:
         return (
             <HRM 
