@@ -232,6 +232,16 @@ export interface PayrollRecord {
     details: PayrollDetail[];
 }
 
+// --- CADASTRAL MAP TYPES (NEW) ---
+export interface CadastralMap {
+  id: string;
+  commune: string;      // Tên xã
+  newMap: string;       // Bản đồ mới
+  oldMap: string;       // Bản đồ cũ LUC, ONT
+  lucDate: string;      // LUC
+  ontDate: string;      // ONT
+}
+
 // --- CONFIG TYPES ---
 export interface CostConfigItem {
   id: string;

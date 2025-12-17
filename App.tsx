@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, FolderKanban, Users, FileText, Settings as SettingsIcon, LogOut, Briefcase, ShieldCheck, Bell, HardHat, User as UserIcon, Camera, Save, X, Menu, Loader2 } from 'lucide-react';
-import { Project, Customer, Employee, Quote, ProjectStatus, QuoteStatus, Role, User, Office, SystemConfig, Notification } from './types';
+import { LayoutDashboard, FolderKanban, Users, FileText, Settings as SettingsIcon, LogOut, Briefcase, ShieldCheck, Bell, HardHat, User as UserIcon, Camera, Save, X, Menu, Loader2, Map } from 'lucide-react';
+import { Project, Customer, Employee, Quote, ProjectStatus, QuoteStatus, Role, User, Office, SystemConfig, Notification, CadastralMap } from './types';
 import { uploadFile } from './utils';
 
 // Importing Views (Renamed to Vietnamese)
@@ -13,6 +13,7 @@ import BaoGia from './components/BaoGia';
 import QuanTri from './components/QuanTri';
 import CauHinh from './components/CauHinh'; 
 import KyThuat from './components/KyThuat'; 
+import TraCuu from './components/TraCuu';
 
 // --- MOCK DATA ---
 const MOCK_OFFICES: Office[] = [
@@ -29,7 +30,8 @@ const MOCK_PROJECTS: Project[] = [
     coords: { x: 123456.78, y: 567890.12 }, drawingDueDate: '2023-10-12', dueDate: '2023-10-15',
     attachments: [
         { id: 'A1', name: 'So_do_scan.pdf', type: 'PDF', url: '#', uploadDate: '2023-10-01' }
-    ]
+    ],
+    plotNumber: '10', plotPage: '25' // Mock duplicate data
   },
   { 
     id: 'HS-23-002', customerId: 'C2', customerName: 'Công ty BDS Hưng Thịnh', customerPhone: '02838383838', officeId: 'OFF-002', type: 'Phân lô tách thửa',
@@ -168,6 +170,26 @@ const INITIAL_DIRECTORS: User[] = [
   { id: 'DIR-003', name: 'Lê Giám Đốc C (Expiring)', email: 'giamdoc.c@company.vn', username: 'admin_c', password: '789', role: Role.DIRECTOR, licenseInfo: { startDate: '2022-11-01', durationYears: 1, endDate: '2023-11-01', maxOffices: 3, maxEmployees: 20, isActive: true } },
 ];
 
+const INITIAL_MAPS: CadastralMap[] = [
+  { id: '1', commune: 'An Bình', newMap: '1-56', oldMap: '1,3,4,5,8', lucDate: '19/5/2015', ontDate: '25/12/2002' },
+  { id: '2', commune: 'Bình Thành', newMap: '1-33', oldMap: '4-8', lucDate: '19/5/2015', ontDate: '12/11/2003' },
+  { id: '3', commune: 'Định Mỹ', newMap: '1-56', oldMap: '1-7', lucDate: '16/9/2020', ontDate: '25/04/2001' },
+  { id: '4', commune: 'Định Thành', newMap: '1-74', oldMap: '1-6', lucDate: '16/9/2020', ontDate: '13/08/2004' },
+  { id: '5', commune: 'Mỹ Phú Đông', newMap: '1-36', oldMap: '1-9', lucDate: '27/4/2009', ontDate: '25/12/2003' },
+  { id: '6', commune: 'Núi Sập', newMap: '1-106', oldMap: '1', lucDate: '14/8/2012', ontDate: '13/11/2004' },
+  { id: '7', commune: 'Óc Eo', newMap: '1-65', oldMap: '2-4,7', lucDate: '15/6/2021', ontDate: '13/11/2004' },
+  { id: '8', commune: 'Phú Hoà', newMap: '1-86', oldMap: '1,3', lucDate: '11/04/2015', ontDate: '15/02/2005' },
+  { id: '9', commune: 'Phú Thuận', newMap: '1-65', oldMap: '2-7', lucDate: '16/4/2019', ontDate: '18/02/2003' },
+  { id: '10', commune: 'Tây Phú', newMap: '1-41', oldMap: '1,2,5,6,9,10', lucDate: '24/4/2019', ontDate: '25/12/2003' },
+  { id: '11', commune: 'Thoại Giang', newMap: '1-43', oldMap: '1-5', lucDate: '16/9/2020', ontDate: '12/11/2003' },
+  { id: '12', commune: 'Vĩnh Chánh', newMap: '1-59', oldMap: '1-4', lucDate: '12/04/2018', ontDate: '25/12/2003' },
+  { id: '13', commune: 'Vĩnh Khánh', newMap: '1-66', oldMap: '1-6', lucDate: '12/04/2018', ontDate: '25/12/2003' },
+  { id: '14', commune: 'Vĩnh Phú', newMap: '1-70', oldMap: '1-5', lucDate: '11/04/2015', ontDate: '03/04/2003' },
+  { id: '15', commune: 'Vĩnh Trạch', newMap: '1-101', oldMap: '1-4', lucDate: '15/9/2021', ontDate: '13/08/2004' },
+  { id: '16', commune: 'Vọng Đông', newMap: '1-55', oldMap: '2-4,6-9', lucDate: '11/04/2015', ontDate: '25/12/2002' },
+  { id: '17', commune: 'Vọng Thê', newMap: '1-34', oldMap: '1-3,6', lucDate: '16/9/2020', ontDate: '24/12/2003' },
+];
+
 // Renamed View Enum to Vietnamese to match file structure
 enum View {
   TONG_QUAN = 'TONG_QUAN',
@@ -177,7 +199,8 @@ enum View {
   NHAN_SU = 'NHAN_SU',
   CAU_HINH = 'CAU_HINH',
   QUAN_TRI = 'QUAN_TRI',
-  KY_THUAT = 'KY_THUAT', 
+  KY_THUAT = 'KY_THUAT',
+  TRA_CUU = 'TRA_CUU', // New View
 }
 
 const App: React.FC = () => {
@@ -222,6 +245,79 @@ const App: React.FC = () => {
     avatarUrl: customAvatar
   };
 
+  const getDaysRemaining = (endDateStr?: string) => {
+    if (!endDateStr) return 0;
+    const end = new Date(endDateStr);
+    const now = new Date();
+    const diffTime = end.getTime() - now.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+  };
+
+  // --- ACTIONS ---
+  const addNotification = (userId: string, title: string, message: string) => {
+      const newNotif: Notification = {
+          id: `NOT-${Date.now()}-${Math.random()}`,
+          userId,
+          title,
+          message,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          type: 'SYSTEM'
+      };
+      setNotifications(prev => [newNotif, ...prev]);
+  };
+
+  // --- SYSTEM CHECKS (EFFECT) ---
+  useEffect(() => {
+      // 1. Check License Expiry (Only if Director)
+      if (currentLoggedInDirector && currentLoggedInDirector.licenseInfo) {
+          const days = getDaysRemaining(currentLoggedInDirector.licenseInfo.endDate);
+          if (days > 0 && days <= 30) {
+              // Simple check to avoid spamming notification on every render (in a real app this would be more robust)
+              const hasNotified = notifications.some(n => n.type === 'SYSTEM' && n.title.includes('Bản quyền'));
+              if (!hasNotified) {
+                  addNotification(
+                      currentLoggedInDirector.id, 
+                      'Cảnh báo Bản quyền', 
+                      `Gói phần mềm sắp hết hạn trong ${days} ngày. Vui lòng liên hệ Admin để gia hạn.`
+                  );
+              }
+          }
+      }
+
+      // 2. Check Overdue Projects
+      // Filter projects that are NOT completed and due date is close
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      projects.forEach(p => {
+          if (p.status !== ProjectStatus.COMPLETED && p.status !== ProjectStatus.CANCELLED && p.dueDate) {
+              const due = new Date(p.dueDate);
+              const diffTime = due.getTime() - today.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+              if (diffDays <= 3 && diffDays >= 0) { // Due in 3 days or less (but not passed too long ago for this specific alert type)
+                   // Notify Director
+                   if (currentLoggedInDirector) {
+                        const exists = notifications.some(n => n.message.includes(p.id));
+                        if(!exists) {
+                            addNotification(currentLoggedInDirector.id, 'Hồ sơ sắp đến hạn', `Hồ sơ ${p.id} (${p.customerName}) cần trả kết quả trong ${diffDays} ngày.`);
+                        }
+                   }
+                   // Notify Technician
+                   if (p.technicianId) {
+                        const exists = notifications.some(n => n.message.includes(p.id) && n.userId === p.technicianId);
+                        if (!exists) {
+                            addNotification(p.technicianId, 'Hồ sơ sắp đến hạn', `Hồ sơ ${p.id} của bạn cần hoàn thành trong ${diffDays} ngày.`);
+                        }
+                   }
+              }
+          }
+      });
+
+  }, [currentLoggedInDirector, projects]); // Run when director or projects change (basic dependency)
+
+
   // Profile Update Handler
   const handleUpdateProfile = (newAvatarUrl: string, newPass: string) => {
     setCustomAvatar(newAvatarUrl);
@@ -246,29 +342,17 @@ const App: React.FC = () => {
       }
   };
 
-  // --- Actions ---
-  const addNotification = (userId: string, title: string, message: string) => {
-      const newNotif: Notification = {
-          id: `NOT-${Date.now()}`,
-          userId,
-          title,
-          message,
-          isRead: false,
-          createdAt: new Date().toISOString(),
-          type: 'ASSIGNMENT'
-      };
-      setNotifications(prev => [newNotif, ...prev]);
-  };
-
   const handleUpdateProject = (updatedProject: Project) => {
-    // Check if new assignment (technician changed or newly assigned)
     const oldProject = projects.find(p => p.id === updatedProject.id);
+    
+    // Check Assignment Notification (Director -> Technician)
+    // Trigger if technicianId changes OR if newly assigned
     if (updatedProject.technicianId && updatedProject.technicianId !== oldProject?.technicianId) {
-        // Find technician email
+        // Find technician info
         const tech = employees.find(e => e.id === updatedProject.technicianId);
         if (tech) {
-            console.log(`[EMAIL SYSTEM] Sending email to ${tech.email}: You have been assigned to project ${updatedProject.id}`);
-            addNotification(tech.id, 'Phân công mới', `Bạn được phân công hồ sơ ${updatedProject.id}`);
+            console.log(`[NOTIFY] Sending assignment notification to ${tech.name}`);
+            addNotification(tech.id, 'Phân công mới', `Giám đốc đã phân công hồ sơ ${updatedProject.id} cho bạn.`);
         }
     }
 
@@ -291,19 +375,18 @@ const App: React.FC = () => {
   const handleUpdateEmployee = (updatedEmployee: Employee) => setEmployees(employees.map(e => e.id === updatedEmployee.id ? updatedEmployee : e));
   const handleDeleteEmployee = (id: string) => setEmployees(employees.filter(e => e.id !== id));
 
-
-  const getDaysRemaining = (endDateStr?: string) => {
-    if (!endDateStr) return 0;
-    const end = new Date(endDateStr);
-    const now = new Date();
-    const diffTime = end.getTime() - now.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-  };
-
   const renderContent = () => {
     // Route Technician immediately to their dashboard
     if (currentUserRole === Role.TECHNICIAN) {
-        return <KyThuat currentUser={currentUserMock} projects={projects} onUpdateProject={handleUpdateProject} />;
+        return (
+            <KyThuat 
+                currentUser={currentUserMock} 
+                projects={projects} 
+                onUpdateProject={handleUpdateProject} 
+                onNotify={addNotification}
+                directors={directors}
+            />
+        );
     }
 
     switch (currentView) {
@@ -329,6 +412,7 @@ const App: React.FC = () => {
             systemConfig={systemConfig}
             onAddProject={handleAddProject}
             onUpdateProject={handleUpdateProject}
+            onNotify={addNotification}
           />
         );
       case View.KHACH_HANG:
@@ -365,7 +449,17 @@ const App: React.FC = () => {
       case View.CAU_HINH:
         return <CauHinh config={systemConfig} onUpdateConfig={setSystemConfig} />;
       case View.KY_THUAT: 
-        return <KyThuat currentUser={currentUserMock} projects={projects} onUpdateProject={handleUpdateProject} />;
+        return (
+            <KyThuat 
+                currentUser={currentUserMock} 
+                projects={projects} 
+                onUpdateProject={handleUpdateProject}
+                onNotify={addNotification}
+                directors={directors} 
+            />
+        );
+      case View.TRA_CUU:
+        return <TraCuu initialMaps={INITIAL_MAPS} currentUser={currentUserMock} />;
       default:
         return <TongQuan projects={projects} offices={offices} currentUser={currentUserMock} onAddOffice={handleAddOffice} onUpdateOffice={handleUpdateOffice} />;
     }
@@ -493,6 +587,7 @@ const App: React.FC = () => {
                 <NavItem view={View.BAO_GIA} icon={FileText} label="Báo giá" />
                 <NavItem view={View.KHACH_HANG} icon={Briefcase} label="Khách hàng" />
                 <NavItem view={View.NHAN_SU} icon={Users} label="Nhân sự & Lương" />
+                <NavItem view={View.TRA_CUU} icon={Map} label="Tra cứu bản đồ" />
                 <div className="pt-4 mt-4 border-t border-gray-100">
                     <NavItem view={View.CAU_HINH} icon={SettingsIcon} label="Cấu hình" />
                 </div>
@@ -574,7 +669,7 @@ const App: React.FC = () => {
               
               {/* Notification Dropdown */}
               {showNotifications && (
-                  <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-md shadow-lg border border-gray-200 z-50 overflow-hidden">
+                  <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-md shadow-lg border border-gray-200 z-50 overflow-hidden">
                       <div className="px-4 py-2 bg-gray-50 border-b font-bold text-gray-700">Thông báo</div>
                       <div className="max-h-60 overflow-y-auto">
                           {myNotifications.length === 0 ? (
@@ -582,14 +677,14 @@ const App: React.FC = () => {
                           ) : (
                               myNotifications.map(n => (
                                   <div key={n.id} className="p-3 border-b hover:bg-gray-50 text-sm">
-                                      <p className="font-bold text-blue-600">{n.title}</p>
+                                      <p className="font-bold text-blue-600 mb-1">{n.title}</p>
                                       <p className="text-gray-600">{n.message}</p>
-                                      <p className="text-xs text-gray-400 mt-1">{n.createdAt.split('T')[0]}</p>
+                                      <p className="text-xs text-gray-400 mt-2 text-right">{n.createdAt.split('T')[0]}</p>
                                   </div>
                               ))
                           )}
                       </div>
-                      <div className="p-2 bg-gray-50 text-center">
+                      <div className="p-2 bg-gray-50 text-center border-t">
                           <button 
                             onClick={() => { setNotifications(prev => prev.map(n => ({...n, isRead: true}))); setShowNotifications(false); }}
                             className="text-xs text-blue-600 hover:underline"

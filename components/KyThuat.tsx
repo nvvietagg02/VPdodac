@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Project, User, TechnicianStatus, ProjectStatus, Attachment } from '../types';
+import { Project, User, TechnicianStatus, ProjectStatus, Attachment, Role } from '../types';
 import { Briefcase, Clock, CheckCircle, MapPin, Phone, Upload, FileText, Check, AlertCircle, Calendar, X, Paperclip, File as FileIcon, Image as ImageIcon, Filter, Edit, Eye, Loader2 } from 'lucide-react';
 import { uploadFile } from '../utils';
 
@@ -8,6 +8,8 @@ interface KyThuatProps {
   currentUser: User;
   projects: Project[];
   onUpdateProject: (project: Project) => void;
+  onNotify: (userId: string, title: string, message: string) => void;
+  directors: User[];
 }
 
 const getDaysRemaining = (dateStr?: string) => {
@@ -95,7 +97,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, showActions = false,
     );
 }
 
-const KyThuat: React.FC<KyThuatProps> = ({ currentUser, projects, onUpdateProject }) => {
+const KyThuat: React.FC<KyThuatProps> = ({ currentUser, projects, onUpdateProject, onNotify, directors }) => {
   const [activeTab, setActiveTab] = useState<TechnicianStatus>('PENDING_ACCEPT');
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -184,6 +186,13 @@ const KyThuat: React.FC<KyThuatProps> = ({ currentUser, projects, onUpdateProjec
           attachments: [...selectedProject.attachments, ...reportFiles]
       };
       onUpdateProject(updated);
+
+      // NOTIFY DIRECTOR ON COMPLETION
+      const director = directors.find(d => d.role === Role.DIRECTOR); // Assuming single director for demo, or filter by office
+      if (director) {
+          onNotify(director.id, 'Hồ sơ hoàn thành', `Kỹ thuật viên ${currentUser.name} đã hoàn thành hồ sơ ${selectedProject.id}.`);
+      }
+
       setIsReportModalOpen(false);
   };
 

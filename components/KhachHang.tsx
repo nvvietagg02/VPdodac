@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Customer, Project, Quote, QuoteStatus, SystemConfig, Attachment } from '../types';
-import { User, Phone, Briefcase, History, Plus, Mail, Edit, X, FolderOpen, FileText, Search, Eye, File as FileIcon, Image as ImageIcon, CreditCard, Paperclip, AlertTriangle, CheckCircle, UserCheck } from 'lucide-react';
+import { User, Phone, Briefcase, History, Plus, Mail, Edit, X, FolderOpen, FileText, Search, Eye, File as FileIcon, Image as ImageIcon, CreditCard, Paperclip, AlertTriangle, CheckCircle, UserCheck, MapPin, Clock, DollarSign } from 'lucide-react';
 
 interface KhachHangProps {
   customers: Customer[];
@@ -24,6 +24,8 @@ const KhachHang: React.FC<KhachHangProps> = ({ customers, projects, quotes, syst
 
   // Quote Detail Modal (New)
   const [viewingQuote, setViewingQuote] = useState<Quote | null>(null);
+  // Project Detail Modal (New for read-only view)
+  const [viewingProject, setViewingProject] = useState<Project | null>(null);
 
   const [formData, setFormData] = useState<Omit<Customer, 'id'>>({
     name: '',
@@ -384,22 +386,13 @@ const KhachHang: React.FC<KhachHangProps> = ({ customers, projects, quotes, syst
                                 <span className="px-2 py-1 bg-gray-100 rounded text-xs">{p.status}</span>
                               </td>
                               <td className="px-4 py-3 text-center">
-                                  {p.attachments && p.attachments.length > 0 ? (
-                                      <div className="flex justify-center space-x-1">
-                                          {p.attachments.map(att => (
-                                              <a 
-                                                key={att.id} 
-                                                href={att.url} 
-                                                target="_blank" 
-                                                rel="noopener noreferrer"
-                                                title={att.name}
-                                                className="text-gray-400 hover:text-blue-600"
-                                              >
-                                                  <Eye size={16} />
-                                              </a>
-                                          ))}
-                                      </div>
-                                  ) : <span className="text-gray-300">-</span>}
+                                  <button 
+                                    onClick={() => setViewingProject(p)}
+                                    className="text-blue-600 hover:bg-blue-50 px-3 py-1 rounded transition text-xs font-medium flex items-center justify-center mx-auto border border-blue-200"
+                                    title="Xem chi tiết & File"
+                                  >
+                                      <Eye size={14} className="mr-1" /> Xem
+                                  </button>
                               </td>
                             </tr>
                           ))}
@@ -551,6 +544,94 @@ const KhachHang: React.FC<KhachHangProps> = ({ customers, projects, quotes, syst
                   
                   <div className="p-4 border-t bg-gray-50 text-right rounded-b-lg">
                       <button onClick={() => setViewingQuote(null)} className="px-4 py-2 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-100">Đóng</button>
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {/* Project Detail Overlay (Read Only for History) */}
+      {viewingProject && (
+          <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60] p-4">
+              <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col">
+                  <div className="p-4 border-b flex justify-between items-center bg-gray-50 rounded-t-lg">
+                      <div>
+                          <h4 className="font-bold text-lg text-gray-800">Chi tiết Hồ sơ #{viewingProject.id}</h4>
+                          <div className="text-sm text-gray-500 mt-1">
+                              Trạng thái: <span className="font-semibold">{viewingProject.status}</span>
+                          </div>
+                      </div>
+                      <button onClick={() => setViewingProject(null)} className="text-gray-400 hover:text-gray-600"><X size={24}/></button>
+                  </div>
+                  
+                  <div className="p-6 overflow-y-auto space-y-4">
+                      {/* Info */}
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                              <p className="text-gray-500">Ngày nhận</p>
+                              <p className="font-medium">{viewingProject.createdDate}</p>
+                          </div>
+                          <div>
+                              <p className="text-gray-500">Hẹn trả KQ</p>
+                              <p className="font-medium text-blue-600">{viewingProject.dueDate}</p>
+                          </div>
+                          <div className="col-span-2">
+                              <p className="text-gray-500">Địa chỉ thửa đất</p>
+                              <p className="font-medium flex items-center"><MapPin size={14} className="mr-1 text-gray-400"/> {viewingProject.address}</p>
+                          </div>
+                          <div className="col-span-2 bg-gray-50 p-2 rounded border border-gray-100">
+                              <p className="text-xs text-gray-500 uppercase font-bold mb-1">Thông tin kỹ thuật</p>
+                              <div className="flex gap-4">
+                                  <span>Tờ: <b>{viewingProject.plotNumber || '-'}</b></span>
+                                  <span>Thửa: <b>{viewingProject.plotPage || '-'}</b></span>
+                                  <span>DT: <b>{viewingProject.landArea} m²</b></span>
+                              </div>
+                          </div>
+                      </div>
+
+                      {/* Financials */}
+                      <div className="bg-green-50 p-3 rounded border border-green-100 text-sm">
+                          <div className="flex justify-between items-center mb-1">
+                              <span className="text-gray-600">Doanh thu:</span>
+                              <span className="font-bold text-green-700">{formatCurrency(viewingProject.revenue)}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                              <span className="text-gray-600">Đã cọc:</span>
+                              <span className="font-bold text-green-600">{formatCurrency(viewingProject.deposit)}</span>
+                          </div>
+                      </div>
+
+                      {/* Attachments */}
+                      <h5 className="font-bold text-gray-700 border-b pb-1 flex items-center mt-2">
+                          <Paperclip size={16} className="mr-2"/> File đính kèm / Kết quả
+                      </h5>
+                      <div className="space-y-2">
+                          {(!viewingProject.attachments || viewingProject.attachments.length === 0) && (
+                              <p className="text-sm text-gray-400 italic">Không có tài liệu đính kèm.</p>
+                          )}
+                          {(viewingProject.attachments || []).map(att => (
+                             <div key={att.id} className="flex justify-between items-center p-3 border rounded hover:bg-gray-50">
+                                 <div className="flex items-center overflow-hidden">
+                                     {att.type === 'PDF' ? <FileIcon size={18} className="text-red-500 mr-3 shrink-0"/> : <ImageIcon size={18} className="text-blue-500 mr-3 shrink-0"/>}
+                                     <div className="truncate font-medium text-sm text-gray-700">
+                                         {att.name}
+                                         <span className="block text-xs text-gray-400 font-normal">{att.uploadDate}</span>
+                                     </div>
+                                 </div>
+                                 <a 
+                                    href={att.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="text-blue-600 hover:underline text-xs flex items-center px-3 py-1 bg-blue-50 rounded shrink-0 border border-blue-100"
+                                 >
+                                     Xem file <Eye size={12} className="ml-1"/>
+                                 </a>
+                             </div>
+                          ))}
+                      </div>
+                  </div>
+                  
+                  <div className="p-4 border-t bg-gray-50 text-right rounded-b-lg">
+                      <button onClick={() => setViewingProject(null)} className="px-4 py-2 bg-white border border-gray-300 rounded text-gray-700 hover:bg-gray-100">Đóng</button>
                   </div>
               </div>
           </div>
