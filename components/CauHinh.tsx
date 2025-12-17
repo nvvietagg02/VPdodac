@@ -3,12 +3,12 @@ import React, { useState } from 'react';
 import { SystemConfig, QuoteStatus, IdConfig, CommissionRule, QuoteAreaRule } from '../types';
 import { Plus, Trash2, Save, Settings as SettingsIcon, DollarSign, Tag, Hash, Eye, Ruler, List, Calculator, FileText, CheckSquare } from 'lucide-react';
 
-interface SettingsProps {
+interface CauHinhProps {
   config: SystemConfig;
   onUpdateConfig: (newConfig: SystemConfig) => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ config, onUpdateConfig }) => {
+const CauHinh: React.FC<CauHinhProps> = ({ config, onUpdateConfig }) => {
   // Local state to manage form inputs before saving
   const [localConfig, setLocalConfig] = useState<SystemConfig>(config);
   const [hasChanges, setHasChanges] = useState(false);
@@ -570,4 +570,4 @@ const Settings: React.FC<SettingsProps> = ({ config, onUpdateConfig }) => {
   );
 };
 
-export default Settings;
+export default CauHinh;

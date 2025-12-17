@@ -4,15 +4,15 @@ import { LayoutDashboard, FolderKanban, Users, FileText, Settings as SettingsIco
 import { Project, Customer, Employee, Quote, ProjectStatus, QuoteStatus, Role, User, Office, SystemConfig, Notification } from './types';
 import { uploadFile } from './utils';
 
-// Importing Views
-import Dashboard from './components/Dashboard';
-import Projects from './components/Projects';
-import CRM from './components/CRM';
-import HRM from './components/HRM';
-import Quotations from './components/Quotations';
-import AdminPortal from './components/AdminPortal';
-import SettingsView from './components/Settings'; 
-import TechnicianDashboard from './components/TechnicianDashboard'; 
+// Importing Views (Renamed to Vietnamese)
+import TongQuan from './components/TongQuan';
+import HoSo from './components/HoSo';
+import KhachHang from './components/KhachHang';
+import NhanSu from './components/NhanSu';
+import BaoGia from './components/BaoGia';
+import QuanTri from './components/QuanTri';
+import CauHinh from './components/CauHinh'; 
+import KyThuat from './components/KyThuat'; 
 
 // --- MOCK DATA ---
 const MOCK_OFFICES: Office[] = [
@@ -168,26 +168,27 @@ const INITIAL_DIRECTORS: User[] = [
   { id: 'DIR-003', name: 'Lê Giám Đốc C (Expiring)', email: 'giamdoc.c@company.vn', username: 'admin_c', password: '789', role: Role.DIRECTOR, licenseInfo: { startDate: '2022-11-01', durationYears: 1, endDate: '2023-11-01', maxOffices: 3, maxEmployees: 20, isActive: true } },
 ];
 
+// Renamed View Enum to Vietnamese to match file structure
 enum View {
-  DASHBOARD = 'DASHBOARD',
-  PROJECTS = 'PROJECTS',
-  CRM = 'CRM',
-  QUOTATIONS = 'QUOTATIONS',
-  HRM = 'HRM',
-  SETTINGS = 'SETTINGS',
-  ADMIN_PORTAL = 'ADMIN_PORTAL',
-  TECHNICIAN_DASHBOARD = 'TECHNICIAN_DASHBOARD', // New View
+  TONG_QUAN = 'TONG_QUAN',
+  HO_SO = 'HO_SO',
+  KHACH_HANG = 'KHACH_HANG',
+  BAO_GIA = 'BAO_GIA',
+  NHAN_SU = 'NHAN_SU',
+  CAU_HINH = 'CAU_HINH',
+  QUAN_TRI = 'QUAN_TRI',
+  KY_THUAT = 'KY_THUAT', 
 }
 
 const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<View>(View.DASHBOARD);
+  const [currentView, setCurrentView] = useState<View>(View.TONG_QUAN);
   const [currentUserRole, setCurrentUserRole] = useState<Role>(Role.SUPER_ADMIN); 
   const [directors, setDirectors] = useState<User[]>(INITIAL_DIRECTORS);
   const [offices, setOffices] = useState<Office[]>(MOCK_OFFICES);
   const [customers, setCustomers] = useState<Customer[]>(MOCK_CUSTOMERS);
   const [quotes, setQuotes] = useState<Quote[]>(MOCK_QUOTES);
   const [projects, setProjects] = useState<Project[]>(MOCK_PROJECTS);
-  const [employees, setEmployees] = useState<Employee[]>(MOCK_EMPLOYEES); // Converted to state
+  const [employees, setEmployees] = useState<Employee[]>(MOCK_EMPLOYEES); 
   const [systemConfig, setSystemConfig] = useState<SystemConfig>(INITIAL_CONFIG);
   
   // Notification State
@@ -195,7 +196,7 @@ const App: React.FC = () => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   // Layout State
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile sidebar toggle
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); 
 
   // User Profile Mock Data State
   const [customAvatar, setCustomAvatar] = useState<string>('');
@@ -302,13 +303,13 @@ const App: React.FC = () => {
   const renderContent = () => {
     // Route Technician immediately to their dashboard
     if (currentUserRole === Role.TECHNICIAN) {
-        return <TechnicianDashboard currentUser={currentUserMock} projects={projects} onUpdateProject={handleUpdateProject} />;
+        return <KyThuat currentUser={currentUserMock} projects={projects} onUpdateProject={handleUpdateProject} />;
     }
 
     switch (currentView) {
-      case View.DASHBOARD:
+      case View.TONG_QUAN:
         return (
-          <Dashboard 
+          <TongQuan 
             projects={projects} 
             offices={offices} 
             currentUser={currentUserMock}
@@ -316,9 +317,9 @@ const App: React.FC = () => {
             onUpdateOffice={handleUpdateOffice}
           />
         );
-      case View.PROJECTS:
+      case View.HO_SO:
         return (
-          <Projects 
+          <HoSo 
             projects={projects} 
             customers={customers}
             offices={offices}
@@ -330,11 +331,11 @@ const App: React.FC = () => {
             onUpdateProject={handleUpdateProject}
           />
         );
-      case View.CRM:
-        return <CRM customers={customers} projects={projects} quotes={quotes} systemConfig={systemConfig} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} />;
-      case View.HRM:
+      case View.KHACH_HANG:
+        return <KhachHang customers={customers} projects={projects} quotes={quotes} systemConfig={systemConfig} onAddCustomer={handleAddCustomer} onUpdateCustomer={handleUpdateCustomer} />;
+      case View.NHAN_SU:
         return (
-            <HRM 
+            <NhanSu 
                 employees={employees} 
                 projects={projects} 
                 offices={offices}
@@ -346,9 +347,9 @@ const App: React.FC = () => {
                 onUpdateSystemConfig={setSystemConfig} // Pass updater
             />
         );
-      case View.QUOTATIONS:
+      case View.BAO_GIA:
         return (
-            <Quotations 
+            <BaoGia 
                 quotes={quotes} 
                 customers={customers} 
                 currentUser={currentUserMock} 
@@ -359,14 +360,14 @@ const App: React.FC = () => {
                 onNotify={addNotification} // Pass notification handler
             />
         );
-      case View.ADMIN_PORTAL:
-        return <AdminPortal directors={directors} onAddDirector={handleAddDirector} onUpdateDirector={handleUpdateDirector} />;
-      case View.SETTINGS:
-        return <SettingsView config={systemConfig} onUpdateConfig={setSystemConfig} />;
-      case View.TECHNICIAN_DASHBOARD: // Fallback if switched manually
-        return <TechnicianDashboard currentUser={currentUserMock} projects={projects} onUpdateProject={handleUpdateProject} />;
+      case View.QUAN_TRI:
+        return <QuanTri directors={directors} onAddDirector={handleAddDirector} onUpdateDirector={handleUpdateDirector} />;
+      case View.CAU_HINH:
+        return <CauHinh config={systemConfig} onUpdateConfig={setSystemConfig} />;
+      case View.KY_THUAT: 
+        return <KyThuat currentUser={currentUserMock} projects={projects} onUpdateProject={handleUpdateProject} />;
       default:
-        return <Dashboard projects={projects} offices={offices} currentUser={currentUserMock} onAddOffice={handleAddOffice} onUpdateOffice={handleUpdateOffice} />;
+        return <TongQuan projects={projects} offices={offices} currentUser={currentUserMock} onAddOffice={handleAddOffice} onUpdateOffice={handleUpdateOffice} />;
     }
   };
 
@@ -463,7 +464,7 @@ const App: React.FC = () => {
             <ShieldCheck className={currentUserRole === Role.SUPER_ADMIN ? 'text-indigo-600' : 'text-blue-700'} />
             <div className="flex items-baseline">
               <span className="text-xl font-bold tracking-tight">VPdodac</span>
-              <span className="ml-1 text-xs text-gray-400 font-normal">V25.01</span>
+              <span className="ml-1 text-xs text-gray-400 font-normal">V25.02</span>
             </div>
           </div>
           <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-gray-500">
@@ -475,25 +476,25 @@ const App: React.FC = () => {
           {currentUserRole === Role.SUPER_ADMIN && (
              <div className="mb-6">
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-4">Super Admin</div>
-                <NavItem view={View.ADMIN_PORTAL} icon={ShieldCheck} label="Quản trị hệ thống" />
+                <NavItem view={View.QUAN_TRI} icon={ShieldCheck} label="Quản trị hệ thống" />
              </div>
           )}
           
           {currentUserRole === Role.TECHNICIAN ? (
               <div>
                    <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-4">Kỹ Thuật Viên</div>
-                   <NavItem view={View.TECHNICIAN_DASHBOARD} icon={HardHat} label="Cổng Kỹ thuật" />
+                   <NavItem view={View.KY_THUAT} icon={HardHat} label="Cổng Kỹ thuật" />
               </div>
           ) : (
               <>
                 <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-4">Văn phòng</div>
-                <NavItem view={View.DASHBOARD} icon={LayoutDashboard} label="Tổng quan" />
-                <NavItem view={View.PROJECTS} icon={FolderKanban} label="Hồ sơ & Đo đạc" />
-                <NavItem view={View.QUOTATIONS} icon={FileText} label="Báo giá" />
-                <NavItem view={View.CRM} icon={Briefcase} label="Khách hàng" />
-                <NavItem view={View.HRM} icon={Users} label="Nhân sự & Lương" />
+                <NavItem view={View.TONG_QUAN} icon={LayoutDashboard} label="Tổng quan" />
+                <NavItem view={View.HO_SO} icon={FolderKanban} label="Hồ sơ & Đo đạc" />
+                <NavItem view={View.BAO_GIA} icon={FileText} label="Báo giá" />
+                <NavItem view={View.KHACH_HANG} icon={Briefcase} label="Khách hàng" />
+                <NavItem view={View.NHAN_SU} icon={Users} label="Nhân sự & Lương" />
                 <div className="pt-4 mt-4 border-t border-gray-100">
-                    <NavItem view={View.SETTINGS} icon={SettingsIcon} label="Cấu hình" />
+                    <NavItem view={View.CAU_HINH} icon={SettingsIcon} label="Cấu hình" />
                 </div>
               </>
           )}
@@ -531,9 +532,9 @@ const App: React.FC = () => {
                   <Menu size={24} />
               </button>
               <h1 className="text-lg font-medium text-gray-700 truncate max-w-[200px] md:max-w-none">
-                {currentView === View.ADMIN_PORTAL ? (
+                {currentView === View.QUAN_TRI ? (
                   <span className="font-bold text-indigo-700">PORTAL QUẢN TRỊ VIÊN</span>
-                ) : currentView === View.TECHNICIAN_DASHBOARD ? (
+                ) : currentView === View.KY_THUAT ? (
                   <span className="font-bold text-blue-700">CỔNG THÔNG TIN KỸ THUẬT</span>
                 ) : (
                   <span>Văn phòng: <span className="font-bold text-gray-900">Chi nhánh Củ Chi</span></span>
@@ -548,9 +549,9 @@ const App: React.FC = () => {
               onChange={(e) => {
                 const newRole = e.target.value as Role;
                 setCurrentUserRole(newRole);
-                if (newRole === Role.SUPER_ADMIN) setCurrentView(View.ADMIN_PORTAL);
-                else if (newRole === Role.TECHNICIAN) setCurrentView(View.TECHNICIAN_DASHBOARD);
-                else setCurrentView(View.DASHBOARD);
+                if (newRole === Role.SUPER_ADMIN) setCurrentView(View.QUAN_TRI);
+                else if (newRole === Role.TECHNICIAN) setCurrentView(View.KY_THUAT);
+                else setCurrentView(View.TONG_QUAN);
               }}
             >
               <option value={Role.SUPER_ADMIN}>Super Admin</option>

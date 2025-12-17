@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { uploadFile } from '../utils';
 
-interface ProjectsProps {
+interface HoSoProps {
   projects: Project[];
   customers: Customer[];
   offices: Office[];
@@ -23,7 +23,7 @@ interface ProjectsProps {
   onUpdateProject: (project: Project) => void;
 }
 
-const Projects: React.FC<ProjectsProps> = ({ 
+const HoSo: React.FC<HoSoProps> = ({ 
   projects, customers, offices, quotes, employees, currentUser, systemConfig, 
   onAddProject, onUpdateProject 
 }) => {
@@ -597,4 +597,4 @@ const Projects: React.FC<ProjectsProps> = ({
   );
 };
 
-export default Projects;
+export default HoSo;

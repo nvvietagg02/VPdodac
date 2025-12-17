@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 import { Project, User, TechnicianStatus, ProjectStatus, Attachment } from '../types';
 import { Briefcase, Clock, CheckCircle, MapPin, Phone, Upload, FileText, Check, AlertCircle, Calendar, X, Paperclip, File as FileIcon, Image as ImageIcon, Filter, Edit, Eye, Loader2 } from 'lucide-react';
 import { uploadFile } from '../utils';
 
-interface TechnicianDashboardProps {
+interface KyThuatProps {
   currentUser: User;
   projects: Project[];
   onUpdateProject: (project: Project) => void;
@@ -94,7 +95,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, showActions = false,
     );
 }
 
-const TechnicianDashboard: React.FC<TechnicianDashboardProps> = ({ currentUser, projects, onUpdateProject }) => {
+const KyThuat: React.FC<KyThuatProps> = ({ currentUser, projects, onUpdateProject }) => {
   const [activeTab, setActiveTab] = useState<TechnicianStatus>('PENDING_ACCEPT');
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -364,4 +365,4 @@ const TechnicianDashboard: React.FC<TechnicianDashboardProps> = ({ currentUser, 
   );
 };
 
-export default TechnicianDashboard;
+export default KyThuat;

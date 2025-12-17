@@ -4,7 +4,7 @@ import { Quote, QuoteStatus, QuoteType, Customer, User, Role, SystemConfig, Quot
 import { FilePlus, Send, CheckSquare, XSquare, Eye, Edit, Trash2, Plus, X, Clock, Check, FileText, Upload, Paperclip, File as FileIcon, Image as ImageIcon, Loader2, Search, UserCheck, CheckCircle } from 'lucide-react';
 import { uploadFile } from '../utils';
 
-interface QuotationsProps {
+interface BaoGiaProps {
   quotes: Quote[];
   customers: Customer[];
   currentUser: User;
@@ -15,7 +15,7 @@ interface QuotationsProps {
   onNotify: (userId: string, title: string, message: string) => void; // Notification handler
 }
 
-const Quotations: React.FC<QuotationsProps> = ({ 
+const BaoGia: React.FC<BaoGiaProps> = ({ 
   quotes, 
   customers, 
   currentUser, 
@@ -851,4 +851,4 @@ const Quotations: React.FC<QuotationsProps> = ({
   );
 };
 
-export default Quotations;
+export default BaoGia;

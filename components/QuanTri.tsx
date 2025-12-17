@@ -1,14 +1,15 @@
+
 import React, { useState } from 'react';
 import { User, Role, LicenseInfo } from '../types';
 import { ShieldCheck, UserPlus, Calendar, AlertTriangle, CheckCircle, XCircle, Key, Clock, Edit, MoreHorizontal } from 'lucide-react';
 
-interface AdminPortalProps {
+interface QuanTriProps {
   directors: User[];
   onAddDirector: (user: User) => void;
   onUpdateDirector: (user: User) => void;
 }
 
-const AdminPortal: React.FC<AdminPortalProps> = ({ directors, onAddDirector, onUpdateDirector }) => {
+const QuanTri: React.FC<QuanTriProps> = ({ directors, onAddDirector, onUpdateDirector }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isExtendModalOpen, setIsExtendModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -521,4 +522,4 @@ const AdminPortal: React.FC<AdminPortalProps> = ({ directors, onAddDirector, onU
   );
 };
 
-export default AdminPortal;
+export default QuanTri;

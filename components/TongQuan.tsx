@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { 
   BarChart, 
@@ -12,7 +13,7 @@ import {
 import { AlertTriangle, FileText, Building, MapPin, Plus, Edit, Phone, X, Calendar, User as UserIcon } from 'lucide-react';
 import { Project, ProjectStatus, Office, User, Role } from '../types';
 
-interface DashboardProps {
+interface TongQuanProps {
   projects: Project[];
   offices: Office[];
   currentUser: User; // To check license limits
@@ -20,7 +21,7 @@ interface DashboardProps {
   onUpdateOffice: (office: Office) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ projects, offices, currentUser, onAddOffice, onUpdateOffice }) => {
+const TongQuan: React.FC<TongQuanProps> = ({ projects, offices, currentUser, onAddOffice, onUpdateOffice }) => {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [selectedMonth, setSelectedMonth] = useState<number | 'ALL'>('ALL'); // New: Month Filter
@@ -438,4 +439,4 @@ const Dashboard: React.FC<DashboardProps> = ({ projects, offices, currentUser, o
   );
 };
 
-export default Dashboard;
+export default TongQuan;

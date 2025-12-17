@@ -1,8 +1,9 @@
+
 import React, { useState, useMemo } from 'react';
 import { Employee, Role, Project, ProjectStatus, Office, User, DailyAttendanceRecord, Allowance, AllowanceType, AllowanceFrequency, SystemConfig, PayrollConfig, PayrollRecord, PayrollDetail } from '../types';
 import { Users, Calendar, DollarSign, Plus, Edit, Trash2, X, Phone, Mail, Building, MapPin, Briefcase, Key, Eye, ChevronLeft, ChevronRight, Check, Zap, XCircle, Clock, AlertCircle, Coins, Settings, Calculator, FileCheck, ArrowLeft } from 'lucide-react';
 
-interface HRMProps {
+interface NhanSuProps {
   employees: Employee[];
   projects: Project[]; // Needed for commission calculation
   offices: Office[];
@@ -28,7 +29,7 @@ const MOCK_PAYROLL_HISTORY: PayrollRecord[] = [
     }
 ];
 
-const HRM: React.FC<HRMProps> = ({ employees, projects, offices, currentUser, systemConfig, onAddEmployee, onUpdateEmployee, onDeleteEmployee, onUpdateSystemConfig }) => {
+const NhanSu: React.FC<NhanSuProps> = ({ employees, projects, offices, currentUser, systemConfig, onAddEmployee, onUpdateEmployee, onDeleteEmployee, onUpdateSystemConfig }) => {
   const [activeTab, setActiveTab] = useState<'EMPLOYEES' | 'ATTENDANCE' | 'PAYROLL'>('EMPLOYEES');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
@@ -953,4 +954,4 @@ const HRM: React.FC<HRMProps> = ({ employees, projects, offices, currentUser, sy
   );
 };
 
-export default HRM;
+export default NhanSu;
